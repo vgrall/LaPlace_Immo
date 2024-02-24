@@ -1,0 +1,595 @@
+SELECT DISTINCT reg_code, reg_nom FROM REFERENCIEL_GEO
+
+SELECT DISTINCT
+    COM,
+    PTOT,
+    CODCOM,
+    CODDEP
+FROM `DONNEES_COMMUNES`
+WHERE
+    1
+
+SELECT DISTINCT
+    Code_postal,
+    Commune,
+    Code_departement,
+    Code_commune
+FROM VALEURS_FONCIERES
+
+SELECT DISTINCT
+    *
+FROM (
+        SELECT DISTINCT
+            COM, PTOT, CODCOM, CODDEP
+        FROM `DONNEES_COMMUNES`
+    ) AS COMMUNES
+    LEFT JOIN (
+        SELECT DISTINCT
+            Code_postal, Commune, Code_departement, Code_commune
+        FROM VALEURS_FONCIERES
+    ) AS CODE_POSTAL ON COMMUNES.CODDEP = CODE_POSTAL.Code_departement
+    AND COMMUNES.CODCOM = CODE_POSTAL.Code_commune
+
+CREATE TABLE COMMUNE_TRAVAIL (
+    nom_commune VARCHAR(100), population_totale INT, code_commune INT, code_departement VARCHAR(10), code_postal VARCHAR(10)
+);
+
+INSERT INTO
+    COMMUNE_TRAVAIL (
+        nom_commune, population_totale, code_commune, code_departement
+    )
+SELECT DISTINCT
+    c.COM,
+    c.PTOT,
+    c.CODCOM,
+    c.CODDEP
+FROM (
+        SELECT DISTINCT
+            COM, PTOT, CODCOM, CODDEP
+        FROM DONNEES_COMMUNES
+    ) AS c
+    LEFT JOIN (
+        SELECT DISTINCT
+            Code_departement, Code_commune
+        FROM VALEURS_FONCIERES
+    ) AS v ON c.CODDEP = v.Code_departement
+    AND c.CODCOM = v.Code_commune;
+
+SELECT DISTINCT
+    *
+FROM (
+        SELECT DISTINCT
+            nom_commune, population_totale, code_commune, code_departement
+        FROM `COMMUNE_TRAVAIL`
+    ) AS COMMUNES
+    LEFT JOIN (
+        SELECT DISTINCT
+            dep_code, reg_code
+        FROM REFERENCIEL_GEO
+    ) AS CODE_REGION ON COMMUNES.code_departement = CODE_REGION.dep_code
+
+ALTER TABLE COMMUNE_TRAVAIL ADD COLUMN code_region VARCHAR(10);
+
+-- Mise à jour de la colonne code_region avec les valeurs de la table REFERENCIEL_GEO
+UPDATE COMMUNE_TRAVAIL AS c
+LEFT JOIN (
+    SELECT DISTINCT
+        dep_code, reg_code
+    FROM REFERENCIEL_GEO
+) AS CODE_REGION ON c.code_departement = CODE_REGION.dep_code
+SET
+    c.code_region = CODE_REGION.reg_code;
+
+-- Ajout de la colonne code_region à la table COMMUNE_TRAVAIL
+ALTER TABLE COMMUNE_TRAVAIL ADD COLUMN code_region VARCHAR(10);
+
+-- Mise à jour de la colonne code_region avec les valeurs de la table REFERENCIEL_GEO
+UPDATE COMMUNE_TRAVAIL AS c
+LEFT JOIN (
+    SELECT DISTINCT
+        dep_code, LPAD(reg_code, 2, '0') AS reg_code
+    FROM REFERENCIEL_GEO
+) AS CODE_REGION ON c.code_departement = LPAD(CODE_REGION.dep_code, 2, '0')
+SET
+    c.code_region = CODE_REGION.reg_code;
+
+CREATE TABLE REGION as SELECT DISTINCT reg_nom, reg_code
+
+FROM REFERENCIEL_GEO
+    -- Selection des colonnes Code_departement, Code_commune, No_voie, BTQ, Type_voie, Nombre_pieces, Surface_reelle, Surface_Carrez, Type_local de la table VALEURS_FONCIERES
+SELECT DISTINCT
+    Code_departement,
+    Code_commune,
+    No_voie,
+    BTQ,
+    Type_voie,
+    Nombre_pieces,
+    Surface_reelle,
+    Surface_Carrez,
+    Type_local
+FROM VALEURS_FONCIERES
+    -- Création de la table BIENS à partir des valeurs selectionnées
+CREATE TABLE BIENS as
+SELECT DISTINCT
+    Code_departement,
+    Code_commune,
+    No_voie,
+    BTQ,
+    Type_voie,
+    Nombre_pieces,
+    Surface_reelle,
+    Surface_Carrez,
+    Type_local
+FROM VALEURS_FONCIERES
+
+ALTER TABLE `COMMUNE_TRAVAIL`
+ADD PRIMARY KEY (
+    `code_departement`, `code_commune`
+);
+
+ALTER TABLE BIENS
+ADD FOREIGN KEY (
+    Code_departement, Code_commune
+) REFERENCES `COMMUNE_TRAVAIL` (
+    code_departement, code_commune
+);
+
+-- création d'une colonne auto incrémenter dans la table BIENS qui permet de créer un identifiant unique pour chaque bien
+ALTER TABLE BIENS ADD COLUMN id_biens INT AUTO_INCREMENT PRIMARY KEY;
+
+-- création d'une table VENTES qui contient les informations sur les ventes de biens avec une colonne valeur_bien importée de la table VALEURS_FONCIERES colonne Valeur_fonciere et une colonne date_vente importée de la table VALEURS_FONCIERES colonne Date_mutation
+
+CREATE TABLE VENTES (
+    id_vente INT AUTO_INCREMENT, biens_id INT, date_vente DATE, prix VARCHAR(15), PRIMARY KEY (id_vente), FOREIGN KEY (biens_id) REFERENCES BIENS (id_biens)
+);
+
+SELECT * from `VALEURS_FONCIERES` WHERE voie = 'DU PARC 3';
+
+INSERT INTO
+    VENTES (biens_id, date_vente, prix)
+SELECT b.id_biens, v.Date_mutation, v.Valeur_fonciere
+FROM BIENS as b, VALEURS_FONCIERES as v
+WHERE
+    b.Code_departement = v.Code_departement
+    and b.Code_commune = v.Code_commune
+    and b.No_voie = v.No_voie
+    and b.BTQ = v.BTQ
+    and b.Type_voie = v.Type_voie
+    -- and b.Voie = v.Voie
+    and b.Nombre_pieces = v.Nombre_pieces
+    and b.Surface_carrez = v.Surface_Carrez
+    and b.Type_local = v.Type_local
+    and v.Valeur_fonciere != '';
+
+SELECT
+    YEAR(v.date_vente) as annee,
+    MONTH(v.date_vente) as mois,
+    COUNT(*) as nb_ventes,
+    SUM(prix) prix_total
+from
+    VENTES v,
+    BIENS b,
+    COMMUNE_TRAVAIL c
+WHERE
+    v.biens_id = b.id_biens
+    AND b.Code_departement = c.code_departement
+    AND b.Code_commune = c.code_commune
+    AND c.nom_commune = 'Saint-Brieuc'
+GROUP BY
+    YEAR(v.date_vente),
+    MONTH(v.date_vente);
+
+-- nombre total d'appartements vendus au 1er semestre 2020
+SELECT COUNT(*) as nb_appartements_vendus
+from VENTES v, BIENS b
+WHERE
+    v.biens_id = b.id_biens
+    AND b.Type_local = 'Appartement'
+    AND YEAR(v.date_vente) = 2020
+    AND MONTH(v.date_vente) <= 6;
+
+-- nombre de ventes d'appartements par région pour le 1er semestre 2020
+SELECT c.code_region, COUNT(*) as nb_appartements_vendus
+from
+    VENTES v,
+    BIENS b,
+    COMMUNE_TRAVAIL c
+WHERE
+    v.biens_id = b.id_biens
+    AND b.Code_departement = c.code_departement
+    AND b.Code_commune = c.code_commune
+    AND b.Type_local = 'Appartement'
+    AND YEAR(v.date_vente) = 2020
+    AND MONTH(v.date_vente) <= 6
+GROUP BY
+    c.code_region;
+
+-- proportion des ventes d'appartements par le nombre de pièces
+SELECT b.Nombre_pieces, COUNT(*) as nb_appartements_vendus
+from VENTES v, BIENS b
+WHERE
+    v.biens_id = b.id_biens
+
+AND b.Type_local = 'Appartement'
+AND YEAR(v.date_vente) = 2020
+AND MONTH(v.date_vente) <= 6
+GROUP BY
+    b.Nombre_pieces;
+
+-- Liste des 10 appartements où le prix du mètre carré est le plus élevé
+SELECT b.id_biens, b.Surface_reelle, v.prix, v.prix / b.Surface_reelle as prix_m2
+from VENTES v, BIENS b
+WHERE
+    v.biens_id = b.id_biens
+    AND b.Type_local = 'Appartement'
+    AND YEAR(v.date_vente) = 2020
+    AND MONTH(v.date_vente) <= 6
+ORDER BY prix_m2 DESC
+LIMIT 10;
+
+-- Prix moyen du mètre carré d'une maison en Île-de-France
+
+SELECT AVG(v.prix / b.Surface_reelle) as prix_m2_maison
+from
+    VENTES v,
+    BIENS b,
+    COMMUNE_TRAVAIL c
+WHERE
+    v.biens_id = b.id_biens
+    AND b.Code_departement = c.code_departement
+    AND b.Code_commune = c.code_commune
+    AND b.Type_local = 'Maison'
+    AND c.code_region = '11'
+    AND YEAR(v.date_vente) = 2020
+    AND MONTH(v.date_vente) <= 6;
+
+-- Liste des 10 appartements les plus chers avec la région et le nombre de mètres carrés
+SELECT b.id_biens, c.code_region, b.Surface_reelle, v.prix, v.prix / b.Surface_reelle as prix_m2
+from
+    VENTES v,
+    BIENS b,
+    COMMUNE_TRAVAIL c
+WHERE
+    v.biens_id = b.id_biens
+    AND b.Code_departement = c.code_departement
+    AND b.Code_commune = c.code_commune
+    AND b.Type_local = 'Appartement'
+    AND YEAR(v.date_vente) = 2020
+    AND MONTH(v.date_vente) <= 6
+ORDER BY v.prix DESC
+LIMIT 10;
+
+-- taux d'évolution du nombre de ventes entre le premier et le second trimestre de 2020
+SELECT (
+        SELECT COUNT(*)
+        from VENTES v
+        WHERE
+            YEAR(v.date_vente) = 2020
+            AND MONTH(v.date_vente) <= 3
+    ) as nb_ventes_trimestre_1,
+    (
+        SELECT COUNT(*)
+        from VENTES v
+        WHERE
+            YEAR(v.date_vente) = 2020
+            AND MONTH(v.date_vente) > 3
+            AND MONTH(v.date_vente) <= 6
+    ) as nb_ventes_trimestre_2,
+    (
+        (
+            SELECT COUNT(*)
+            from VENTES v
+            WHERE
+                YEAR(v.date_vente) = 2020
+                AND MONTH(v.date_vente) > 3
+                AND MONTH(v.date_vente) <= 6
+        ) - (
+            SELECT COUNT(*)
+            from VENTES v
+            WHERE
+                YEAR(v.date_vente) = 2020
+                AND MONTH(v.date_vente) <= 3
+        )
+    ) / (
+        SELECT COUNT(*)
+        from VENTES v
+        WHERE
+            YEAR(v.date_vente) = 2020
+            AND MONTH(v.date_vente) <= 3
+    ) as taux_evol_nb_ventes;
+
+-- classement des régions par rapport au prix au mètre carré des appartements de plus de 4 pièces
+SELECT
+    c.code_region,
+    AVG(v.prix / b.Surface_reelle) as prix_m2_appartement_4_pieces
+from
+    VENTES v,
+    BIENS b,
+    COMMUNE_TRAVAIL c
+WHERE
+    v.biens_id = b.id_biens
+    AND b.Code_departement = c.code_departement
+    AND b.Code_commune = c.code_commune
+    AND b.Type_local = 'Appartement'
+    AND b.Nombre_pieces > 4
+    AND YEAR(v.date_vente) = 2020
+
+GROUP BY c.code_region ORDER BY prix_m2_appartement_4_pieces DESC;
+
+-- liste des communes ayant eu au moins 50 ventes au 1er trimestre
+SELECT c.nom_commune, COUNT(*) as nb_ventes
+from
+    VENTES v,
+    BIENS b,
+    COMMUNE_TRAVAIL c
+WHERE
+    v.biens_id = b.id_biens
+    AND b.Code_departement = c.code_departement
+    AND b.Code_commune = c.code_commune
+    AND YEAR(v.date_vente) = 2020
+    AND MONTH(v.date_vente) <= 3
+GROUP BY
+    c.nom_commune
+HAVING
+    nb_ventes >= 50;
+
+CREATE TABLE projet_data_immo.BIENS AS
+SELECT DISTINCT
+    id_codedep_codecommune VARCHAR(55),
+    Code_departement INT,
+    Code_commune VARCHAR(55),
+    No_voie INT,
+    BTQ VARCHAR(4),
+    Type_voie VARCHAR(255),
+    Nombre_pieces INT,
+    Surface_reelle INT,
+    Surface_Carrez FLOAT,
+    Type_local VARCHAR(255)
+FROM brouillon_projet_3.VALEURS_FONCIERES;
+-- CORRIGER LES ERREURS DE SYNTAXE
+CREATE TABLE projet_data_immo.BIENS AS
+SELECT DISTINCT
+    id_codedep_codecommune VARCHAR(55),
+    Code_departement INT,
+    Code_commune VARCHAR(55),
+    No_voie INT,
+    BTQ VARCHAR(4),
+    Type_voie VARCHAR(255),
+    Nombre_pieces INT,
+    Surface_reelle INT,
+    Surface_Carrez FLOAT,
+    Type_local VARCHAR(255)
+FROM brouillon_projet_3.VALEURS_FONCIERES;
+
+-- Nombre de ventes d'appartements par nombre de pièces
+SELECT b.Nombre_pieces, COUNT(*) AS nombre_ventes_appartements
+FROM projet_data_immo.VENTES v
+    INNER JOIN projet_data_immo.BIENS b ON v.biens_id = b.id_biens
+WHERE
+    b.Type_local = 'Appartement'
+    AND YEAR(v.date_vente) = 2020
+    AND MONTH(v.date_vente) <= 6
+GROUP BY
+    b.Nombre_pieces;
+
+-- ratio du nombre de ventes d'appartements par nombre de pièces
+SELECT
+    b.Nombre_pieces,
+    COUNT(*) AS nombre_ventes_appartements,
+    CONCAT(
+        FORMAT(
+            (
+                COUNT(*) / (
+                    SELECT COUNT(*)
+                    FROM projet_data_immo.VENTES v
+                        INNER JOIN projet_data_immo.BIENS b ON v.biens_id = b.id_biens
+                    WHERE
+                        b.Type_local = 'Appartement'
+                        AND YEAR(v.date_vente) = 2020
+                        AND MONTH(v.date_vente) <= 6
+                )
+            ) * 100, -- Calcul du ratio
+            2
+        ), -- Nombre de décimales après la virgule
+        '%'
+    ) AS ratio_ventes_appartements -- Ajout du symbole "%"
+FROM projet_data_immo.VENTES v
+    INNER JOIN projet_data_immo.BIENS b ON v.biens_id = b.id_biens
+WHERE
+    b.Type_local = 'Appartement'
+    AND YEAR(v.date_vente) = 2020
+    AND MONTH(v.date_vente) <= 6
+GROUP BY
+    b.Nombre_pieces;
+
+-- Liste des 10 appartements où le prix du mètre carré est le plus élevé
+-- limiter le nombre de decimal à 2
+
+SELECT b.id_biens, b.Surface_reelle, v.prix, v.prix / b.Surface_reelle AS prix_m2
+FROM projet_data_immo.VENTES v
+    INNER JOIN projet_data_immo.BIENS b ON v.biens_id = b.id_biens
+WHERE
+    b.Type_local = 'Appartement'
+    AND YEAR(v.date_vente) = 2020
+    AND MONTH(v.date_vente) <= 6
+ORDER BY prix_m2 DESC
+LIMIT 10;
+
+-- Prix moyen du mètre carré d'une maison en Île-de-France
+SELECT AVG(v.prix / b.Surface_reelle) AS prix_m2_maison
+FROM projet_data_immo.VENTES v
+    INNER JOIN projet_data_immo.BIENS b ON v.biens_id = b.id_biens
+    INNER JOIN projet_data_immo.COMMUNE_TRAVAIL c ON b.Code_departement = c.code_departement
+    AND b.Code_commune = c.code_commune
+WHERE
+    b.Type_local = 'Maison'
+    AND c.code_region = '11'
+    AND YEAR(v.date_vente) = 2020
+    AND MONTH(v.date_vente) <= 6;
+
+-- Liste des 10 appartements les plus chers avec la région et le nombre de mètres carrés
+SELECT b.id_biens, c.code_region, b.Surface_reelle, v.prix, v.prix / b.Surface_reelle AS prix_m2
+FROM projet_data_immo.VENTES v
+    INNER JOIN projet_data_immo.BIENS b ON v.biens_id = b.id_biens
+    INNER JOIN projet_data_immo.COMMUNE_TRAVAIL c ON b.Code_departement = c.code_departement
+    AND b.Code_commune = c.code_commune
+WHERE
+    b.Type_local = 'Appartement'
+    AND YEAR(v.date_vente) = 2020
+    AND MONTH(v.date_vente) <= 6
+ORDER BY v.prix DESC
+LIMIT 10;
+
+-- taux d'évolution du nombre de ventes entre le premier et le second trimestre de 2020
+SELECT (
+        SELECT COUNT(*)
+        FROM projet_data_immo.VENTES v
+        WHERE
+            YEAR(v.date_vente) = 2020
+            AND MONTH(v.date_vente) <= 3
+    ) AS nb_ventes_trimestre_1,
+    (
+        SELECT COUNT(*)
+        FROM projet_data_immo.VENTES v
+        WHERE
+            YEAR(v.date_vente) = 2020
+            AND MONTH(v.date_vente) > 3
+            AND MONTH(v.date_vente) <= 6
+    ) AS nb_ventes_trimestre_2,
+    (
+        (
+            SELECT COUNT(*)
+            FROM projet_data_immo.VENTES v
+            WHERE
+                YEAR(v.date_vente) = 2020
+                AND MONTH(v.date_vente) > 3
+                AND MONTH(v.date_vente) <= 6
+        ) - (
+            SELECT COUNT(*)
+            FROM projet_data_immo.VENTES v
+            WHERE
+                YEAR(v.date_vente) = 2020
+                AND MONTH(v.date_vente) <= 3
+        )
+    ) / (
+        SELECT COUNT(*)
+        FROM projet_data_immo.VENTES v
+        WHERE
+            YEAR(v.date_vente) = 2020
+            AND MONTH(v.date_vente) <= 3
+    ) * 100 AS taux_evol_nb_ventes;
+
+-- Cette requête permet de calculer le nombre de ventes au cours du premier trimestre et du deuxième trimestre de l'année 2020, ainsi que le taux d'évolution du nombre de ventes entre ces deux trimestres.
+
+SELECT -- Sélection des colonnes
+    nb_ventes_trimestre_1,
+    nb_ventes_trimestre_2,
+    (
+        (
+            nb_ventes_trimestre_2 - nb_ventes_trimestre_1
+        ) / nb_ventes_trimestre_1
+    ) * 100 AS taux_evol_nb_ventes -- Calcul du taux d'évolution
+FROM (
+        SELECT -- Sélection des colonnes 
+            (
+                SELECT COUNT(*) -- Calcul du nombre de ventes au cours du premier trimestre 
+                FROM projet_data_immo.VENTES v1
+                WHERE
+                    YEAR(v1.date_vente) = 2020
+                    AND MONTH(v1.date_vente) <= 3
+            ) AS nb_ventes_trimestre_1, (
+                SELECT COUNT(*) -- Calcul du nombre de ventes au cours du deuxième trimestre
+                FROM projet_data_immo.VENTES v2
+                WHERE
+                    YEAR(v2.date_vente) = 2020
+                    AND MONTH(v2.date_vente) > 3
+                    AND MONTH(v2.date_vente) <= 6
+            ) AS nb_ventes_trimestre_2
+    ) AS ventes_trimestre;
+-- Nom de la sous-requête
+-- classement des régions par rapport au prix au mètre carré des appartements de plus de 4 pièces
+SELECT
+    c.code_region,
+    AVG(v.prix / b.Surface_reelle) AS prix_m2_appartement_4_pieces
+FROM projet_data_immo.VENTES v
+    INNER JOIN projet_data_immo.BIENS b ON v.biens_id = b.id_biens
+    INNER JOIN projet_data_immo.COMMUNE_TRAVAIL c ON b.Code_departement = c.code_departement
+    AND b.Code_commune = c.code_commune
+WHERE
+    b.Type_local = 'Appartement'
+    AND b.Nombre_pieces > 4
+    AND YEAR(v.date_vente) = 2020
+    AND MONTH(v.date_vente) <= 6
+GROUP BY
+    c.code_region
+ORDER BY prix_m2_appartement_4_pieces DESC;
+
+-- liste des communes ayant eu au moins 50 ventes au 1er trimestre
+SELECT c.nom, COUNT(*) AS nb_ventes
+FROM projet_data_immo.VENTES v
+    INNER JOIN projet_data_immo.BIENS b ON v.biens_id = b.id_biens
+    INNER JOIN projet_data_immo.COMMUNES c ON b.code_departement = c.code_departement
+    AND b.code_commune = c.code_commune
+WHERE
+    YEAR(v.date_vente) = 2020
+    AND MONTH(v.date_vente) <= 3
+GROUP BY
+    c.nom
+HAVING
+    nb_ventes >= 50;
+
+-- différence en pourcentage du prix au mètre carré entre un appartement de 2 pièces et un appartement de 3 pièces
+SELECT CONCAT(
+           FORMAT(
+               ((SELECT AVG(v.prix / b.Surface_reelle) -- Calcul du prix au mètre carré pour un appartement de 3 pièces
+                 FROM projet_data_immo.VENTES v
+                 INNER JOIN projet_data_immo.BIENS b ON v.biens_id = b.id_biens
+                 WHERE b.Type_local = 'Appartement'
+                   AND b.Nombre_pieces = 3
+                   AND YEAR(v.date_vente) = 2020
+                   AND MONTH(v.date_vente) <= 6) - (SELECT AVG(v.prix / b.Surface_reelle) -- Calcul du prix au mètre carré pour un appartement de 2 pièces
+                                                    FROM projet_data_immo.VENTES v
+                                                    INNER JOIN projet_data_immo.BIENS b ON v.biens_id = b.id_biens
+                                                    WHERE b.Type_local = 'Appartement'
+                                                      AND b.Nombre_pieces = 2
+                                                      AND YEAR(v.date_vente) = 2020
+                                                      AND MONTH(v.date_vente) <= 6) / (SELECT AVG(v.prix / b.Surface_reelle) -- Calcul du prix au mètre carré pour un appartement de 2 pièces
+                                                                                     FROM projet_data_immo.VENTES v
+                                                                                     INNER JOIN projet_data_immo.BIENS b ON v.biens_id = b.id_biens
+                                                                                     WHERE b.Type_local = 'Appartement'
+                                                                                       AND b.Nombre_pieces = 2
+                                                                                       AND YEAR(v.date_vente) = 2020
+                                                                                       AND MONTH(v.date_vente) <= 6) * 100, -- Calcul de la différence en pourcentage
+               2), -- Nombre de décimales après la virgule
+           '%') AS diff_prix_m2;
+-- Ajout du symbole "%"
+-- Les moyennes de valeurs foncieres pour le top 3 des communes des départements 6,14,33,59,69
+SELECT c.nom, AVG(v.prix) AS moyenne_valeur_fonciere
+FROM projet_data_immo.VENTES v
+    INNER JOIN projet_data_immo.BIENS b ON v.biens_id = b.id_biens
+    INNER JOIN projet_data_immo.COMMUNES c ON b.code_departement = c.code_departement
+    AND b.code_commune = c.code_commune
+WHERE
+    c.code_departement IN ('06', '14', '33', '59', '69')
+    AND YEAR(v.date_vente) = 2020
+    AND MONTH(v.date_vente) <= 6
+GROUP BY
+    c.nom
+ORDER BY moyenne_valeur_fonciere DESC
+LIMIT 3;
+
+-- Les 20 communes avec le plus de transactions pour 1000 habitants pour les communes qui dépassent les 10000 habitants
+SELECT
+    c.nom,
+    COUNT(*) / (MAX(c.population) / 1000) AS transactions_pour_1000_habitants
+FROM projet_data_immo.VENTES v
+    INNER JOIN projet_data_immo.BIENS b ON v.biens_id = b.id_biens
+    INNER JOIN projet_data_immo.COMMUNES c ON b.code_departement = c.code_departement
+    AND b.code_commune = c.code_commune
+WHERE
+    c.population > 10000
+GROUP BY
+    c.nom
+ORDER BY
+    transactions_pour_1000_habitants DESC
+LIMIT 20;

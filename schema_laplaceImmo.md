@@ -1,0 +1,37 @@
+erDiagram
+COMMUNES ||--o{ BIENS : has
+REGIONS ||--o{ COMMUNES : has
+BIENS ||--o{ VENTES : has
+COMMUNES {
+string id_codedep_codecommune
+string code_departement
+string code_commune
+string nom_commune
+string population
+string code_region
+}
+REGIONS {
+string reg_code
+string reg_nom
+}
+BIENS {
+integer id_biens
+string codedep_codecommune_id
+string code_departement
+string code_commune
+string No_voie
+string BTQ
+string Type_voie
+string Voie
+string Nombre_pieces
+string Surface_reelle
+string Surface_Carrez
+string Type_local
+string Code_postal
+}
+VENTES {
+integer id_vente
+integer biens_id
+date date_vente
+string prix
+}

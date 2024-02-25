@@ -217,3 +217,41 @@ WHERE date_vente LIKE '%/%';
 - TABLE REGIONS = 19 lignes
 - TABLE VENTES = 34 169 lignes
 ```
+
+## VERIFICATION NOMBRES DE VENTES PAR BIENS
+
+```
+SELECT b.codedep_codecommune_id, b.No_voie, b.Voie, b.BTQ, COUNT(*) AS nombre_ventes
+FROM BIENS b
+LEFT JOIN VENTES v ON b.id_biens = v.biens_id
+GROUP BY b.codedep_codecommune_id, b.No_voie, b.Voie, b.BTQ
+ORDER BY nombre_ventes DESC;
+```
+
+| codedep_codecommune_id | No_voie | Voie                      | BTQ | nombre_ventes |
+| ---------------------- | ------- | ------------------------- | --- | ------------- |
+| 33522                  | 690     | DE LA LIBERATION          |     | 13            |
+| 13209                  | 83      | DU REDON                  |     | 11            |
+| 77014                  | 9001    | AVE DE GAULLE 27 FOUGERES |     | 9             |
+| 91161                  | 36      | MAZARIN                   |     | 8             |
+| 77285                  | 120     | DE PLEIN CIEL             |     | 8             |
+| 91226                  | 4       | DE LA ROCHE BENOTTE       |     | 8             |
+| 14754                  | 9006    | RES SUPER DEAUVILLE       |     | 8             |
+| 45006                  | 200     | DES 4 VENTS               |     | 7             |
+| 76540                  | 1       | DE HANOVRE                |     | 7             |
+| 91521                  | 9001    | DU TEMPLE                 |     | 7             |
+| 91477                  | 9001    | D ARDENAY                 |     | 7             |
+| 2A130                  | 5400    | DE TERRA BELLA            |     | 7             |
+| 14754                  | 9005    | RES LE FRANCE             |     | 7             |
+| 33550                  | 9001    | SARCIGNAN                 |     | 7             |
+| 33214                  | 9002    | BLEU MARINE               |     | 7             |
+| 7324                   | 113     | DU HUIT MAI 1945          |     | 7             |
+| 44109                  | 104     | DU CORPS DE GARDE         |     | 6             |
+| 34301                  | 9077    | DU CHATEAU VERT           |     | 6             |
+| 95428                  | 77      | DES CHESNEAUX             | B   | 6             |
+| 83144                  | 9001    | LA COUPIANE               |     | 6             |
+| 77449                  | 42      | DU DANUBE                 |     | 6             |
+| 42005                  | 9004    | MOLIERE                   |     | 6             |
+| 94017                  | 98      | DU GENERAL DE GAULLE      |     | 6             |
+| 69381                  | 13      | STE CATHERINE             |     | 6             |
+| 78172                  | 75      | ARISTIDE BRIAND           |     | 6             |

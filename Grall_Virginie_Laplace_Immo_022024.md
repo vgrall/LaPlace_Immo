@@ -11,7 +11,7 @@
 
 ## CRÉATION DE LA TABLE COMMUNES
 
-```
+
 
 ### Création de la table COMMUNES dans la BDD de destination
 
@@ -128,7 +128,7 @@ ADD COLUMN id_VF INT AUTO_INCREMENT;
 ```
 
 ### Implémenter cette table avec les données
-
+```
 INSERT INTO BIENS (id_biens, codedep_codecommune_id, code_departement, code_commune, No_voie, BTQ, Type_voie, Voie, Nombre_pieces, Surface_reelle, Surface_Carrez, Type_local, Code_postal)
 SELECT DISTINCT
 id_VF,
@@ -146,6 +146,7 @@ Type_local,
 Code_postal
 
 FROM brouillon_projet_3.VALEURS_FONCIERES;
+```
 
 ## CRÉATION TABLE VENTES
 
@@ -165,7 +166,7 @@ FOREIGN KEY (biens_id) REFERENCES BIENS(id_biens)
 
 ```
 
-SELECT \* from brouillon_projet_3.VALEURS_FONCIERES
+SELECT * from brouillon_projet_3.VALEURS_FONCIERES
 WHERE voie = 'DU PARC 3';
 
 ```
@@ -216,7 +217,7 @@ WHERE date_vente LIKE '%/%';
 - TABLE COMMUNES = 34991 lignes
 - TABLE REGIONS = 19 lignes
 - TABLE VENTES = 34 169 lignes
-```
+
 
 ## VERIFICATION NOMBRES DE VENTES PAR BIENS
 

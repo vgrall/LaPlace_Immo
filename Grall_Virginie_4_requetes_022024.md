@@ -177,30 +177,22 @@ Réponse :
 ## 7- taux d'évolution du nombre de ventes entre le premier et le second trimestre de 2020
 
 ```
-SELECT  -- Sélection des colonnes
-        nb_ventes_trimestre_1,
-        nb_ventes_trimestre_2,
-        ((nb_ventes_trimestre_2 - nb_ventes_trimestre_1) / nb_ventes_trimestre_1) * 100 AS taux_evol_nb_ventes -- Calcul du taux d'évolution
-FROM (
-        SELECT  -- Sélection des colonnes
-                (SELECT COUNT(*) -- Calcul du nombre de ventes au cours du premier trimestre
-                 FROM VENTES v1
-                 WHERE YEAR(v1.date_vente) = 2020
-                     AND MONTH(v1.date_vente) <= 3) AS nb_ventes_trimestre_1,
-                (SELECT COUNT(*) -- Calcul du nombre de ventes au cours du deuxième trimestre
-                 FROM VENTES v2
-                 WHERE YEAR(v2.date_vente) = 2020
-                     AND MONTH(v2.date_vente) > 3
-                     AND MONTH(v2.date_vente) <= 6) AS nb_ventes_trimestre_2
-) AS ventes_trimestre; -- Nom de la sous-requête
-
+WITH
+vente1 AS (
+ SELECT round(count(id_vente),2) AS nbventes1
+ FROM VENTES
+ WHERE date_vente BETWEEN "2020/01/01" AND "2020/03/31"),
+vente2 AS (
+ SELECT round(count(id_vente),2) AS nbventes2
+ FROM VENTES
+ WHERE date_vente BETWEEN "2020/04/01" AND "2020/06/30")
+SELECT round(((nbventes2 - nbventes1) / nbventes1 * 100), 2) AS "Taux d'évolution"
+FROM vente1, vente2;
 
 ```
 
 Réponse
-| nb_ventes_trimestre_1 | nb_ventes_trimestre_2 | taux_evol_nb_ventes |
-| --------------------- | --------------------- | ------------------- |
-| 16776 | 17393 | 3.677 % |
+3,68%
 
 ## 8- classement des régions par rapport au prix au mètre carré des appartements de plus de 4 pièces
 
@@ -287,24 +279,23 @@ Réponse :
 ## 10- différence en pourcentage du prix au mètre carré entre un appartement de 2 pièces et un appartement de 3 pièces
 
 ```
-SELECT
-    ((prix_m2_3pieces - prix_m2_2pieces) / prix_m2_2pieces) * 100 AS difference_pourcentage
-FROM (
-    SELECT
-        AVG(v.prix / b.Surface_Carrez) AS prix_m2_2pieces
+WITH prix_m2_2pieces AS (
+    SELECT AVG(v.prix / b.Surface_Carrez) AS prix_m2
     FROM VENTES v
     INNER JOIN BIENS b ON v.biens_id = b.id_biens
     WHERE b.Type_local = 'Appartement'
       AND b.Nombre_pieces = 2
-) AS prix_m2_2pieces,
-(
-    SELECT
-        AVG(v.prix / b.Surface_Carrez) AS prix_m2_3pieces
+),
+prix_m2_3pieces AS (
+    SELECT AVG(v.prix / b.Surface_Carrez) AS prix_m2
     FROM VENTES v
     INNER JOIN BIENS b ON v.biens_id = b.id_biens
     WHERE b.Type_local = 'Appartement'
       AND b.Nombre_pieces = 3
-) AS prix_m2_3pieces;
+)
+SELECT ((pm3.prix_m2 - pm2.prix_m2) / pm2.prix_m2) * 100 AS difference_pourcentage
+FROM prix_m2_2pieces pm2, prix_m2_3pieces pm3;
+
 ```
 
 Reponse :

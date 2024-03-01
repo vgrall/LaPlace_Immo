@@ -1,6 +1,6 @@
 # REQUETES ET REPONSES LAPLACE IMMO
 
-## nombre total d'appartements vendus au 1er semestre 2020 ?
+## 1- nombre total d'appartements vendus au 1er semestre 2020 ?
 
 ```
 SELECT COUNT(*) AS nombre_appartements_vendus
@@ -15,7 +15,7 @@ AND b.Type_local = 'Appartement';
 
 _/ réponse : 31 378 appartements /_
 
-## nombre de ventes d'appartements par région pour le 1er semestre 2020
+## 2- nombre de ventes d'appartements par région pour le 1er semestre 2020
 
 ```
 SELECT r.reg_nom,
@@ -24,7 +24,7 @@ FROM VENTES v
 JOIN BIENS b ON v.biens_id = b.id_biens
 JOIN COMMUNES c ON b.code_departement = c.code_departement
                                   AND b.code_commune = c.code_commune
-JOIN pREGIONS r ON c.code_region = r.reg_code
+JOIN REGIONS r ON c.code_region = r.reg_code
 WHERE YEAR(v.date_vente) = 2020
 AND MONTH(v.date_vente) BETWEEN 1 AND 6
 AND b.Type_local = 'Appartement'
@@ -51,7 +51,7 @@ GROUP BY r.reg_nom;
 | Guyane                     | 34                         |
 | Guadeloupe                 | 2                          |
 
-## proportion des ventes d'appartements par le nombre de pièces
+## 3- proportion des ventes d'appartements par le nombre de pièces
 
 ```
 SELECT b.Nombre_pieces,
@@ -90,40 +90,42 @@ réponse :
 | 10 | 2 | 0.01% |
 | 11 | 1 | 0.00% |
 
-## Liste des 10 appartements où le prix du mètre carré est le plus élevé
+## 4- Liste des 10 départements où le prix du mètre carré est le plus élevé
 
 ```
-SELECT b.id_biens,
-       b.Surface_reelle,
-       v.prix,
-       v.prix / b.Surface_reelle AS prix_m2
+SELECT c.code_departement,
+       ROUND(AVG(v.prix / b.Surface_Carrez), 2) AS prix_m2_moyen
 FROM VENTES v
 INNER JOIN BIENS b ON v.biens_id = b.id_biens
+INNER JOIN COMMUNES c ON b.code_departement = c.code_departement
+AND b.code_commune = c.code_commune
 WHERE b.Type_local = 'Appartement'
   AND YEAR(v.date_vente) = 2020
   AND MONTH(v.date_vente) <= 6
-ORDER BY prix_m2 DESC
+GROUP BY c.code_departement
+ORDER BY prix_m2_moyen DESC
 LIMIT 10;
+
 ```
 
 Réponse :
-| id_biens | Surface_reelle | prix | prix_m2 |
-| -------- | -------------- | -------------- | ------------ |
-| 30603 | 10 | 9 000 000,00 € | 900 000,00 € |
-| 28105 | 5 | 1 290 000,00 € | 258 000,00 € |
-| 28556 | 12 | 2 703 385,00 € | 225 282,08 € |
-| 5552 | 13 | 2 634 000,00 € | 202 615,38 € |
-| 7556 | 42 | 7 620 000,00 € | 181 428,57 € |
-| 30403 | 1 | 175 000,00 € | 175 000,00 € |
-| 3066 | 8 | 1 298 500,00 € | 162 312,50 € |
-| 5212 | 62 | 8 600 000,00 € | 138 709,68 € |
-| 33529 | 19 | 2 200 000,00 € | 115 789,47 € |
-| 30287 | 17 | 1 900 000,00 € | 111 764,71 € |
+| code_departement | prix_m2_moyen |
+| ---------------- | ------------- |
+| 75               | 12 083,32 €   |
+| 92               | 7 277,08 €    |
+| 94               | 5 515,70 €    |
+| 74               | 4 772,08 €    |
+| 6                | 4 743,69 €    |
+| 93               | 4 409,90 €    |
+| 78               | 4 314,01 €    |
+| 69               | 4 125,31 €    |
+| 2A               | 3 935,64 €    |
+| 33               | 3 833,45 €    |
 
-## Prix moyen du mètre carré d'une maison en Île-de-France
+## 5- Prix moyen du mètre carré d'une maison en Île-de-France
 
 ```
-SELECT AVG(v.prix / b.Surface_reelle) AS prix_m2_maison
+SELECT AVG(v.prix / b.Surface_Carrez) AS prix_m2_maison
 FROM VENTES v
 INNER JOIN BIENS b ON v.biens_id = b.id_biens
 INNER JOIN COMMUNES c ON b.code_departement = c.code_departement
@@ -134,41 +136,45 @@ WHERE b.Type_local = 'Maison'
   AND MONTH(v.date_vente) <= 6;
 ```
 
-réponse : 3 997,71 € du m2 en Île de France
+réponse : 3 764,84 € du m2 en Île de France
 
-## Liste des 10 appartements les plus chers avec la région et le nombre de mètres carrés
+## 6- Liste des 10 appartements les plus chers avec la région et le nombre de mètres carrés
 
 ```
 SELECT b.id_biens,
        c.code_region,
-       b.Surface_reelle,
-       v.prix
+       v.prix,
+       r.reg_nom AS region,
+       b.Surface_Carrez AS surface_carrez
 FROM VENTES v
 INNER JOIN BIENS b ON v.biens_id = b.id_biens
 INNER JOIN COMMUNES c ON b.code_departement = c.code_departement
 AND b.code_commune = c.code_commune
+INNER JOIN REGIONS r ON c.code_region = r.reg_code
 WHERE b.Type_local = 'Appartement'
   AND YEAR(v.date_vente) = 2020
   AND MONTH(v.date_vente) <= 6
 ORDER BY v.prix DESC
 LIMIT 10;
+
+
 ```
 
 Réponse :
-| id_biens | code_region | Surface_reelle | prix |
-| -------- | ----------- | -------------- | ------------ |
-| 7053 | 11 | 98 | 999 000,00 € |
-| 3224 | 11 | 22 | 99 938,00 € |
-| 473 | 84 | 57 | 99 900,00 € |
-| 19038 | 84 | 40 | 99 900,00 € |
-| 4596 | 28 | 53 | 99 900,00 € |
-| 10323 | 11 | 53 | 99 900,00 € |
-| 23893 | 52 | 74 | 99 900,00 € |
-| 3349 | 93 | 44 | 99 900,00 € |
-| 12423 | 11 | 28 | 99 900,00 € |
-| 31245 | 28 | 58 | 99 900,00 € |
+| id_biens | code_region | prix      | region                     | surface_carrez |
+| -------- | ----------- | --------- | -------------------------- | -------------- |
+| 7053     | 11          | 999 000 € | Ile-de-France              | 99,7           |
+| 3224     | 11          | 99 938 €  | Ile-de-France              | 22,63          |
+| 12423    | 11          | 99 900 €  | Ile-de-France              | 27,84          |
+| 10323    | 11          | 99 900 €  | Ile-de-France              | 54,04          |
+| 473      | 84          | 99 900 €  | Auvergne-Rhône-Alpes       | 56,02          |
+| 15495    | 11          | 99 900 €  | Ile-de-France              | 19,4           |
+| 3349     | 93          | 99 900 €  | Provence-Alpes-Côte d'Azur | 44,8           |
+| 4596     | 28          | 99 900 €  | Normandie                  | 61,21          |
+| 19038    | 84          | 99 900 €  | Auvergne-Rhône-Alpes       | 40,62          |
+| 31245    | 28          | 99 900 €  | Normandie                  | 57,79          |
 
-## taux d'évolution du nombre de ventes entre le premier et le second trimestre de 2020
+## 7- taux d'évolution du nombre de ventes entre le premier et le second trimestre de 2020
 
 ```
 SELECT  -- Sélection des colonnes
@@ -196,43 +202,45 @@ Réponse
 | --------------------- | --------------------- | ------------------- |
 | 16776 | 17393 | 3.677 % |
 
-## classement des régions par rapport au prix au mètre carré des appartements de plus de 4 pièces
+## 8- classement des régions par rapport au prix au mètre carré des appartements de plus de 4 pièces
 
 ```
-SELECT c.code_region,
-       AVG(v.prix / b.Surface_reelle) AS prix_m2_appartement_4_pieces
+SELECT c.code_region, r.reg_nom,
+       ROUND(AVG(v.prix / b.Surface_Carrez), 2) AS prix_m2_appartement_4_pieces_arrondi
 FROM VENTES v
 INNER JOIN BIENS b ON v.biens_id = b.id_biens
 INNER JOIN COMMUNES c ON b.Code_departement = c.code_departement
 AND b.Code_commune = c.code_commune
+INNER JOIN REGIONS r ON c.code_region = r.reg_code
 WHERE b.Type_local = 'Appartement'
   AND b.Nombre_pieces > 4
   AND YEAR(v.date_vente) = 2020
   AND MONTH(v.date_vente) <= 6
-GROUP BY c.code_region
-ORDER BY prix_m2_appartement_4_pieces DESC;
+GROUP BY c.code_region, r.reg_nom
+ORDER BY prix_m2_appartement_4_pieces_arrondi DESC;
+
 ```
 
 Réponse
-| code_region | prix_m2_appartement_4_pieces |
-| ----------- | ---------------------------- |
-| 11 | 8 003,39 € |
-| 4 | 3 659,83 € |
-| 94 | 3 046,47 € |
-| 93 | 3 005,24 € |
-| 84 | 2 768,87 € |
-| 75 | 2 510,18 € |
-| 53 | 2 271,86 € |
-| 32 | 2 203,61 € |
-| 52 | 2 186,72 € |
-| 76 | 2 096,42 € |
-| 28 | 1 994,25 € |
-| 24 | 1 428,51 € |
-| 44 | 1 313,26 € |
-| 27 | 1 068,93 € |
-| 2 | 564,22 € |
+| code_region | reg_nom                    | prix_m2_appartement_4_pieces_arrondi |
+| ----------- | -------------------------- | ------------------------------------ |
+| 11          | Ile-de-France              | 8 806,67 €                           |
+| 4           | La Réunion                 | 3 659,83 €                           |
+| 93          | Provence-Alpes-Côte d'Azur | 3 616,71 €                           |
+| 94          | Corse                      | 3 117,88 €                           |
+| 84          | Auvergne-Rhône-Alpes       | 2 903,86 €                           |
+| 75          | Nouvelle-Aquitaine         | 2 476,50 €                           |
+| 53          | Bretagne                   | 2 427,14 €                           |
+| 52          | Pays de la Loire           | 2 329,21 €                           |
+| 32          | Hauts-de-France            | 2 199,92 €                           |
+| 76          | Occitanie                  | 2 107,24 €                           |
+| 28          | Normandie                  | 2 026,31 €                           |
+| 44          | Grand Est                  | 1 560,91 €                           |
+| 24          | Centre-Val de Loire        | 1 459,98 €                           |
+| 27          | Bourgogne-Franche-Comté    | 1 260,73 €                           |
+| 2           | Martinique                 | 574,77 €                             |
 
-## liste des communes ayant eu au moins 50 ventes au 1er trimestre
+## 9- liste des communes ayant eu au moins 50 ventes au 1er trimestre
 
 ```
 SELECT c.nom_commune,
@@ -276,14 +284,14 @@ Réponse :
 | Puteaux | 53 |
 | Issy-les-Moulineaux | 50 |
 
-## différence en pourcentage du prix au mètre carré entre un appartement de 2 pièces et un appartement de 3 pièces
+## 10- différence en pourcentage du prix au mètre carré entre un appartement de 2 pièces et un appartement de 3 pièces
 
 ```
 SELECT
     ((prix_m2_3pieces - prix_m2_2pieces) / prix_m2_2pieces) * 100 AS difference_pourcentage
 FROM (
     SELECT
-        AVG(v.prix / b.Surface_reelle) AS prix_m2_2pieces
+        AVG(v.prix / b.Surface_Carrez) AS prix_m2_2pieces
     FROM VENTES v
     INNER JOIN BIENS b ON v.biens_id = b.id_biens
     WHERE b.Type_local = 'Appartement'
@@ -291,7 +299,7 @@ FROM (
 ) AS prix_m2_2pieces,
 (
     SELECT
-        AVG(v.prix / b.Surface_reelle) AS prix_m2_3pieces
+        AVG(v.prix / b.Surface_Carrez) AS prix_m2_3pieces
     FROM VENTES v
     INNER JOIN BIENS b ON v.biens_id = b.id_biens
     WHERE b.Type_local = 'Appartement'
@@ -302,33 +310,50 @@ FROM (
 Reponse :
 | difference_pourcentage |
 | ---------------------- |
-| \-13,04 % |
+| \-12,68 % |
 
-## Les moyennes de valeurs foncieres pour le top 3 des communes des départements 6,14,33,59,69
+## 11- Les moyennes de valeurs foncieres pour le top 3 des communes des départements 6,14,33,59,69
 
 ```
-SELECT c.nom_commune,
-       AVG(v.prix) AS moyenne_valeur_fonciere
-FROM VENTES v
-INNER JOIN BIENS b ON v.biens_id = b.id_biens
-INNER JOIN COMMUNES c ON b.code_departement = c.code_departement
-AND b.code_commune = c.code_commune
-WHERE c.code_departement IN ('06', '14', '33', '59', '69')
-  AND YEAR(v.date_vente) = 2020
-  AND MONTH(v.date_vente) <= 6
-GROUP BY c.nom_commune
-ORDER BY moyenne_valeur_fonciere DESC
-LIMIT 3;
+SELECT nom_commune, code_departement, moyenne_valeur_fonciere
+FROM (
+    SELECT c.nom_commune,
+           c.code_departement,
+           AVG(v.prix) AS moyenne_valeur_fonciere,
+           ROW_NUMBER() OVER (PARTITION BY c.code_departement ORDER BY AVG(v.prix) DESC) AS row_num
+    FROM VENTES v
+    INNER JOIN BIENS b ON v.biens_id = b.id_biens
+    INNER JOIN COMMUNES c ON b.code_departement = c.code_departement
+                           AND b.code_commune = c.code_commune
+    WHERE c.code_departement IN ('06', '14', '33', '59', '69')
+      AND YEAR(v.date_vente) = 2020
+      AND MONTH(v.date_vente) <= 6
+    GROUP BY c.code_departement, c.nom_commune
+) AS ranked_communes
+WHERE row_num <= 3
+ORDER BY code_departement, moyenne_valeur_fonciere DESC;
 ```
 
 Réponse :
-| nom_commune | moyenne_valeur_fonciere |
-| --------------------- | ----------------------- |
-| Saint-Jean-Cap-Ferrat | 968 750,00 € |
-| Eze | 655 000,00 € |
-| Lège-Cap-Ferret | 549 500,64 € |
+| nom_commune            | code_departement | moyenne_valeur_fonciere |
+| ---------------------- | ---------------- | ----------------------- |
+| Saint-Jean-Cap-Ferrat  | 06               | 968 750,00 €            |
+| Eze                    | 06               | 655 000,00 €            |
+| Mouans-Sartoux         | 06               | 476 898,00 €            |
+| Deauville              | 14               | 251 585,64 €            |
+| Benerville-sur-Mer     | 14               | 177 500,00 €            |
+| Tourgéville            | 14               | 169 850,00 €            |
+| Lège-Cap-Ferret        | 33               | 549 500,64 €            |
+| Vayres                 | 33               | 335 000,00 €            |
+| Arcachon               | 33               | 307 435,93 €            |
+| Bersée                 | 59               | 433 202,00 €            |
+| Cysoing                | 59               | 408 550,00 €            |
+| Halluin                | 59               | 322 250,00 €            |
+| Ville-sur-Jarnioux     | 69               | 485 300,00 €            |
+| Lyon 2e Arrondissement | 69               | 455 217,26 €            |
+| Lyon 6e Arrondissement | 69               | 426 968,25 €            |
 
-## Les 20 communes avec le plus de transactions pour 1000 habitants pour les communes qui dépassent les 10000 habitants
+## 12- Les 20 communes avec le plus de transactions pour 1000 habitants pour les communes qui dépassent les 10000 habitants
 
 ```
 SELECT c.nom_commune,
